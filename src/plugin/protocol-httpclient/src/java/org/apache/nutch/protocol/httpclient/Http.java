@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // HTTP Client imports
+import org.apache.commons.httpclient.auth.AuthPolicy;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HostConfiguration;
 import org.apache.commons.httpclient.HttpClient;
@@ -157,6 +158,9 @@ public class Http extends HttpBase {
    */
   private void configureClient() {
 
+	  LOG.info("Setting new NTLM scheme: " + JcifsNtlmScheme.class.getName());
+	  AuthPolicy.registerAuthScheme(AuthPolicy.NTLM, JcifsNtlmScheme.class);
+	  
     // Set up an HTTPS socket factory that accepts self-signed certs.
     Protocol https = new Protocol("https",
         new DummySSLProtocolSocketFactory(), 443);
