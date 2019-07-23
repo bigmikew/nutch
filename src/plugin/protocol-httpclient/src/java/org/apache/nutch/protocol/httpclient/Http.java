@@ -38,6 +38,11 @@ import org.w3c.dom.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+<<<<<<< HEAD
+=======
+// HTTP Client imports
+import org.apache.commons.httpclient.auth.AuthPolicy;
+>>>>>>> 0c7185fd... Added new JCIFS based NTLM Scheme
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HostConfiguration;
 import org.apache.commons.httpclient.HttpClient;
@@ -183,6 +188,9 @@ public class Http extends HttpBase {
    */
   private void configureClient() {
 
+	  LOG.info("Setting new NTLM scheme: " + JcifsNtlmScheme.class.getName());
+	  AuthPolicy.registerAuthScheme(AuthPolicy.NTLM, JcifsNtlmScheme.class);
+	  
     // Set up an HTTPS socket factory that accepts self-signed certs.
     // ProtocolSocketFactory factory = new SSLProtocolSocketFactory();
     ProtocolSocketFactory factory = new DummySSLProtocolSocketFactory();
