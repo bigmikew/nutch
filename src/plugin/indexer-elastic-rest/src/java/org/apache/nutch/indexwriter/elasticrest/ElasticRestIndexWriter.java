@@ -108,6 +108,7 @@ public class ElasticRestIndexWriter implements IndexWriter {
 
   @Override
   public void open(IndexWriterParams parameters) throws IOException {
+	LOG.trace("open called");
     host = parameters.get(ElasticRestConstants.HOST);
     if (StringUtils.isBlank(host)) {
       String message = "Missing host. It should be set in index-writers.xml";
@@ -146,6 +147,7 @@ public class ElasticRestIndexWriter implements IndexWriter {
 
     // skip hostname checks
     HostnameVerifier hostnameVerifier = null;
+	LOG.trace("trustAllHostnames: " + trustAllHostnames);
     if (trustAllHostnames) {
       hostnameVerifier = NoopHostnameVerifier.INSTANCE;
     } else {
@@ -153,7 +155,7 @@ public class ElasticRestIndexWriter implements IndexWriter {
     }
 
     SSLConnectionSocketFactory sslSocketFactory = new SSLConnectionSocketFactory(
-        sslContext);
+        sslContext, hostnameVerifier); //New
     SchemeIOSessionStrategy httpsIOSessionStrategy = new SSLIOSessionStrategy(
         sslContext, hostnameVerifier);
 
@@ -209,6 +211,8 @@ public class ElasticRestIndexWriter implements IndexWriter {
   @Override
   public void write(NutchDocument doc) throws IOException {
     String id = (String) doc.getFieldValue("id");
+	LOG.trace("write called for doc: " + id);
+
     String type = doc.getDocumentMeta().get("type");
     if (type == null) {
       type = defaultType;
@@ -278,6 +282,65 @@ public class ElasticRestIndexWriter implements IndexWriter {
 
   @Override
   public void delete(String key) throws IOException {
+	LOG.trace("delete called for key: " + key);
+    // trust ALL certificates
+    SSLContext sslContext = null;
+    try {
+      sslContext = new SSLContextBuilder()
+          .loadTrustMaterial(new TrustStrategy() {
+            public boolean isTrusted(X509Certificate[] arg0, String arg1)
+                throws CertificateException {
+              return true;
+            }
+          }).build();
+    } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
+      LOG.error("Failed to instantiate sslcontext object: \n{}",
+          ExceptionUtils.getStackTrace(e));
+      throw new SecurityException();
+    }
+
+    // skip hostname checks
+	trustAllHostnames = true; //HARD CODED UPDATE
+		
+    HostnameVerifier hostnameVerifier = null;
+    if (trustAllHostnames) {
+	  LOG.info("oobe Debug - Delete TRUST HOSTNAMES");
+      hostnameVerifier = NoopHostnameVerifier.INSTANCE;
+    } else {
+	  LOG.info("oobe Debug - Delete DONT TRUST HOSTNAMES");
+      hostnameVerifier = new DefaultHostnameVerifier();
+    }
+
+    SSLConnectionSocketFactory sslSocketFactory = new SSLConnectionSocketFactory(
+        sslContext, hostnameVerifier); //New
+    SchemeIOSessionStrategy httpsIOSessionStrategy = new SSLIOSessionStrategy(
+        sslContext, hostnameVerifier);
+
+    JestClientFactory jestClientFactory = new JestClientFactory();
+    URL urlOfElasticsearchNode = new URL(https ? "https" : "http", host, port,
+        "");
+
+    if (host != null && port > 1) {
+      HttpClientConfig.Builder builder = new HttpClientConfig.Builder(
+          urlOfElasticsearchNode.toString()).multiThreaded(true)
+          .connTimeout(300000).readTimeout(300000);
+      if (https) {
+        if (user != null && password != null) {
+          builder.defaultCredentials(user, password);
+        }
+        builder.defaultSchemeForDiscoveredNodes("https")
+            .sslSocketFactory(sslSocketFactory) // this only affects sync calls
+            .httpsIOSessionStrategy(
+                httpsIOSessionStrategy); // this only affects async calls
+      }
+      jestClientFactory.setHttpClientConfig(builder.build());
+    } else {
+      throw new IllegalStateException(
+          "No host or port specified. Please set the host and port in nutch-site.xml");
+    }
+
+    client = jestClientFactory.getObject();
+	
     try {
       if (languages != null && languages.length > 0) {
         Bulk.Builder bulkBuilder = new Bulk.Builder().defaultType(defaultType);
@@ -303,6 +366,7 @@ public class ElasticRestIndexWriter implements IndexWriter {
 
   @Override
   public void update(NutchDocument doc) throws IOException {
+	LOG.trace("update called");
     try {
       write(doc);
     } catch (IOException e) {
@@ -313,6 +377,7 @@ public class ElasticRestIndexWriter implements IndexWriter {
 
   @Override
   public void commit() throws IOException {
+	LOG.trace("update called");
     if (basicFuture != null) {
       // wait for previous to finish
       long beforeWait = System.currentTimeMillis();
@@ -361,6 +426,7 @@ public class ElasticRestIndexWriter implements IndexWriter {
 
   @Override
   public void close() throws IOException {
+	LOG.trace("close called");
     // Flush pending requests
     LOG.info(
         "Processing remaining requests [docs = {}, length = {}, total docs = {}]",
