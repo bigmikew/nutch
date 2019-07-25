@@ -49,6 +49,9 @@ import org.apache.tika.sax.XHTMLContentHandler;
 import org.apache.tika.sax.Link;
 import org.apache.tika.sax.LinkContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
+
+import org.apache.tika.parser.ocr.TesseractOCRConfig;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.DocumentFragment;
@@ -130,6 +133,9 @@ public class TikaParser implements org.apache.nutch.parse.Parser {
 
     ParseContext context = new ParseContext();
     TeeContentHandler teeContentHandler = new TeeContentHandler(domHandler, linkContentHandler);
+    
+    //enable tesseract
+    context.set(TesseractOCRConfig.class, new TesseractOCRConfig());
     
     if (HTMLMapper != null)
       context.set(HtmlMapper.class, HTMLMapper);
